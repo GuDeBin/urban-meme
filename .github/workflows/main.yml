@@ -1,39 +1,26 @@
-# This is a basic workflow to help you get started with Actions
+name: Continuous Deploy #action名称
+on: [push] #在推送的时候运行此action
 
-name: deploy
-
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches: [main]
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-    # Steps represent a sequence of tasks that will be executed as part of the job
+  deploy_job:
+    runs-on: ubuntu-latest #运行环境
+    name: build
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      - name: install Node.js
-        uses: actions/setup-node@v2.5.0
+      # check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2 #这里使用了github官方提供的action,checkout项目到虚拟机上
+
+      - name: Install Dependencies
+        run: yarn
+      - name: Build
+        run: yarn build
+
+      # 利用action把build好的文件上传到服务器/var/www/react-app路径下,需要确认此目录已在服务端创建
+      - name: deploy file to server
+        uses: wlixcc/SFTP-Deploy-Action@v1.0
         with:
-          node-version: "16.X"
-      - name: install dep
-        run: npm install
-      - name: build app
-        run: npm run build
-      - name: copy file via ssh password
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          password: ${{ secrets.REMOTE_PASS }}
-          port: 22
-          source: "build/"
-          target: ${{ secrets.REMOTE_TARGET }}
+          username: "root" #ssh user name
+          server: "${{ secrets.SERVER_IP }}" #引用之前创建好的secret
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} #引用之前创建好的secret
+          local_path: "./build/*" # 对应我们项目build的文件夹路径
+          remote_path: "/var/www/html"
